@@ -14,10 +14,10 @@ CLI examples:
   python tools/ocr_openai.py img1.jpg img2.png --format docx --out-dir ./out
   python tools/ocr_openai.py --folder ./scans --format md --out-dir ./out
 
-Install:
-  pip install openai==1.* pymupdf pillow python-docx
-  setx OPENAI_API_KEY your_key   # Windows
-  export OPENAI_API_KEY=your_key # macOS/Linux
+Install:␊
+    pip install openai==1.* pymupdf python-docx
+    setx OPENAI_API_KEY your_key   # Windows
+    export OPENAI_API_KEY=your_key # macOS/Linux
 
 Notes:
   - Rendering PDFs with PyMuPDF avoids external system tools.
@@ -39,26 +39,18 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 # Third‑party runtime deps
 try:
     import fitz  # PyMuPDF
-except Exception as exc:  # pragma: no cover
-    print("[fatal] PyMuPDF (fitz) is required. Install with: pip install pymupdf", file=sys.stderr)
-    raise
-
-try:
-    from PIL import Image  # noqa: F401
-except Exception as exc:  # pragma: no cover
-    print("[fatal] Pillow is required. Install with: pip install pillow", file=sys.stderr)
-    raise
+except ImportError:  # pragma: no cover
+    fitz = None  # type: ignore
 
 try:
     from openai import OpenAI
-except Exception as exc:  # pragma: no cover
-    print("[fatal] openai SDK is required. Install with: pip install openai", file=sys.stderr)
-    raise
+except ImportError:  # pragma: no cover
+    OpenAI = None  # type: ignore
 
 # Optional for DOCX export; checked at runtime only if used
 try:
     from docx import Document  # type: ignore
-except Exception:
+except ImportError:
     Document = None  # type: ignore
 
 # Stdlib GUI
@@ -108,6 +100,8 @@ def load_image_file(path: Path) -> ImageBytes:
 
 
 def pdf_page_count(path: Path) -> int:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF (fitz) is required. Install with: pip install pymupdf")
     doc = fitz.open(str(path))
     n = doc.page_count
     doc.close()
@@ -115,6 +109,8 @@ def pdf_page_count(path: Path) -> int:
 
 
 def pdf_pages_as_images(path: Path, dpi: int = DEFAULT_DPI) -> Iterable[ImageBytes]:
+    if fitz is None:
+        raise RuntimeError("PyMuPDF (fitz) is required. Install with: pip install pymupdf")
     doc = fitz.open(str(path))
     zoom = dpi / 72.0
     mat = fitz.Matrix(zoom, zoom)
@@ -134,6 +130,8 @@ def encode_image_data_url(img: ImageBytes) -> str:
 # ---------------------------- OpenAI Call ----------------------------
 class OpenAIOCR:
     def __init__(self, model: str = DEFAULT_MODEL, api_key: Optional[str] = None):
+        if OpenAI is None:  # pragma: no cover - handled via runtime check
+            raise RuntimeError("openai SDK is required. Install with: pip install openai")
         self.client = OpenAI(api_key=api_key) if api_key else OpenAI()
         self.model = model
 
@@ -725,3 +723,4 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
+
